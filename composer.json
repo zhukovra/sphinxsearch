@@ -1,23 +1,27 @@
 {
-  "name": "sngrl/sphinxsearch",
-  "description": "Laravel package to query Sphinxsearch in Laravel 5",
+  "name": "WNeuteboom/sphinxsearch",
+  "description": "Laravel package to query Sphinxsearch in Laravel 5 Lumen",
   "keywords": [
     "sphinx",
     "sphinxsearch",
     "laravel",
-    "laravel 5"
+    "laravel 5",
+    "lavavel 5 lumen"
   ],
-  "homepage": "http://github.com/sngrl/sphinxsearch",
+  "homepage": "http://github.com/WNeuteboom/sphinxsearch",
   "license": "Apache-2.0",
   "authors": [
     {
       "name": "sngrl",
       "email": "reserved@mail.ru"
+    },
+    {
+      "name": "W. Neuteboom",
+      "email": "w.neuteboom@slashforward.nl"
     }
   ],
   "require": {
     "php": ">=5.3.0",
-    "illuminate/support": "~5.0",
     "gigablah/sphinxphp": "2.0.8"
   },
   "autoload": {
