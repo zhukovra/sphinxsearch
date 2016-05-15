@@ -26,10 +26,10 @@ class SphinxSearch
      * @param  string  $key
      * @return mixed
      */
-    public function __get($key)
-    {
-        return $this->getAttribute($key);
-    }
+    // public function __get($key)
+    // {
+    //     return $this->getAttribute($key);
+    // }
 
     /**
      * Dynamically set attributes on the model.
@@ -43,6 +43,7 @@ class SphinxSearch
         $this->setAttribute($key, $value);
     }
 
+    /*
     public function search($string, $index_name = null)
     {
         $this->_search_string = $string;
@@ -245,4 +246,5 @@ class SphinxSearch
         }
         return false;
     }
+    */
 }
