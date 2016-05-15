@@ -12,10 +12,6 @@
   "license": "Apache-2.0",
   "authors": [
     {
-      "name": "sngrl",
-      "email": "reserved@mail.ru"
-    },
-    {
       "name": "W. Neuteboom",
       "email": "w.neuteboom@slashforward.nl"
     }

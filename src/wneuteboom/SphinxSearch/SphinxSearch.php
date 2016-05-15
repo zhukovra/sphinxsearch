@@ -1,9 +1,9 @@
 <?php 
-namespace sngrl\SphinxSearch;
+namespace wneuteboom\SphinxSearch;
 
 class SphinxSearch
 {
-    protected $_connection;
+    protected $connection;
     protected $_index_name;
     protected $_search_string;
     protected $_config;
@@ -13,18 +13,34 @@ class SphinxSearch
 
     public function __construct()
     {
-        $host = \Config::get('sphinxsearch.host');
-        $port = \Config::get('sphinxsearch.port');
-        $timeout = \Config::get('sphinxsearch.timeout');
-        $this->_connection = new \Sphinx\SphinxClient();
-        $this->_connection->setServer($host, $port);
-        $this->_connection->setConnectTimeout($timeout);
-        $this->_connection->setMatchMode(\Sphinx\SphinxClient::SPH_MATCH_ANY);
-        $this->_connection->setSortMode(\Sphinx\SphinxClient::SPH_SORT_RELEVANCE);
-        $this->_config = \Config::get('sphinxsearch.indexes');
-        reset($this->_config);
-        $this->_index_name = isset($this->_config['name']) ? implode(',', $this->_config['name']) : key($this->_config);
-        $this->_eager_loads = array();
+        $this->connection = new \Sphinx\SphinxClient();
+        $this->connection->setServer(env('SPHINX_HOST', '127.0.0.1'), env('SPHINX_PORT', 9312));
+        $this->connection->setConnectTimeout($timeout);
+        $this->connection->setMatchMode(\Sphinx\SphinxClient::SPH_MATCH_ANY);
+        $this->connection->setSortMode(\Sphinx\SphinxClient::SPH_SORT_RELEVANCE);
+    }
+
+    /**
+     * Dynamically retrieve attributes on the model.
+     *
+     * @param  string  $key
+     * @return mixed
+     */
+    public function __get($key)
+    {
+        return $this->getAttribute($key);
+    }
+
+    /**
+     * Dynamically set attributes on the model.
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @return void
+     */
+    public function __set($key, $value)
+    {
+        $this->setAttribute($key, $value);
     }
 
     public function search($string, $index_name = null)
@@ -76,25 +92,25 @@ class SphinxSearch
 
     public function setGeoAnchor($attrlat, $attrlong, $lat = null, $long = null)
     {
-        $this->_connection->setGeoAnchor($attrlat, $attrlong, $lat, $long);
+        $this->connection->setGeoAnchor($attrlat, $attrlong, $lat, $long);
         return $this;
     }
 
     public function setGroupBy($attribute, $func, $groupsort = '@group desc')
     {
-        $this->_connection->setGroupBy($attribute, $func, $groupsort);
+        $this->connection->setGroupBy($attribute, $func, $groupsort);
         return $this;
     }
 
     public function setSelect($select)
     {
-        $this->_connection->setSelect($select);
+        $this->connection->setSelect($select);
         return $this;
     }
 
-    public function limit($limit, $offset = 0, $max_matches = 1000, $cutoff = 1000)
+    public function setLimit($limit, $offset = 0, $max_matches = 1000, $cutoff = 1000)
     {
-        $this->_connection->setLimits($offset, $limit, $max_matches, $cutoff);
+        $this->connection->setLimits($offset, $limit, $max_matches, $cutoff);
         return $this;
     }
 
