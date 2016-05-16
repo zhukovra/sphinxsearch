@@ -11,11 +11,11 @@ class SphinxSearch
     protected $_time;
     protected $_eager_loads;
 
-    public function __construct()
+    public function __construct($args = array())
     {
         $this->connection = new \Sphinx\SphinxClient();
-        $this->connection->setServer(env('SPHINX_HOST', '127.0.0.1'), env('SPHINX_PORT', 9312));
-        $this->connection->setConnectTimeout($timeout);
+        $this->connection->setServer($args['host'], $args['port']);
+        $this->connection->setConnectTimeout($args['timeout']);
         $this->connection->setMatchMode(\Sphinx\SphinxClient::SPH_MATCH_ANY);
         $this->connection->setSortMode(\Sphinx\SphinxClient::SPH_SORT_RELEVANCE);
     }
@@ -38,10 +38,10 @@ class SphinxSearch
      * @param  mixed  $value
      * @return void
      */
-    public function __set($key, $value)
-    {
-        $this->setAttribute($key, $value);
-    }
+    // public function __set($key, $value)
+    // {
+    //     $this->setAttribute($key, $value);
+    // }
 
     /*
     public function search($string, $index_name = null)
