@@ -4,16 +4,13 @@ namespace WNeuteboom\SphinxSearch;
 class SphinxSearch
 {
     protected $connection;
-
-    protected $total_count;
+    protected $total_found;
     protected $time;
+
     protected $term;
     protected $index;
-    protected $order = "";
-    protected $exclude = array();
     protected $limit = 100;
     protected $offset = 0;
-    protected $page = 0;
 
     protected $table;
     protected $with = array();
@@ -23,8 +20,6 @@ class SphinxSearch
         $this->connection = new \Sphinx\SphinxClient();
         $this->connection->setServer($args['host'], $args['port']);
         $this->connection->setConnectTimeout($args['timeout']);
-        $this->connection->setMatchMode(\Sphinx\SphinxClient::SPH_MATCH_ANY);
-        $this->connection->setSortMode(\Sphinx\SphinxClient::SPH_SORT_RELEVANCE);
     }
 
     public function select()
@@ -62,16 +57,28 @@ class SphinxSearch
         return $this;
     }
 
-    public function where($field, $value) 
+    public function where($field, $value, $exclude = false) 
     {
-        $this->SetFilter($field, $value);
+        if (is_array($value))
+        {
+            $val = array();
+
+            foreach ($value as $v)
+                $val[] = (int)$v;
+        }
+        else
+        {
+            $val = array((int)$value);
+        }
+
+        $this->SetFilter($field, $val, $exclude);
 
         return $this;
     }
 
     public function whereNot($field, $value)
     {
-        $this->SetFilter($field, $value, true);
+        $this->where($field, $value, true);
 
         return $this;
     }
@@ -79,13 +86,6 @@ class SphinxSearch
     public function whereFloatRange($field, $from, $to)
     {
         $this->SetFilterFloatRange($field, (float)$from, (float)$to);
-
-        return $this;
-    }
-
-    public function orderBy($field, $sort_type)
-    {
-        $this->SetSortMode($sort_type, $field);
 
         return $this;
     }
@@ -106,6 +106,80 @@ class SphinxSearch
         return $this;
     }
 
+    public function orderBy($field, $sortmode)
+    {
+        if(gettype($sortmode) === "string")
+        {
+            $sortmode = strtoupper($sortmode);
+            $sortmode = str_replace("SPH_SORT_", "", $sortmode);
+
+            switch($sortmode) 
+            {
+                case "RELEVANCE":       $sortmode = \Sphinx\SphinxClient::SPH_SORT_RELEVANCE;       break;
+                case "ATTR_DESC":       $sortmode = \Sphinx\SphinxClient::SPH_SORT_ATTR_DESC;       break;
+                case "ATTR_ASC":        $sortmode = \Sphinx\SphinxClient::SPH_SORT_ATTR_ASC;        break;
+                case "TIME_SEGMENTS":   $sortmode = \Sphinx\SphinxClient::SPH_SORT_TIME_SEGMENTS;   break;
+                case "EXTENDED":        $sortmode = \Sphinx\SphinxClient::SPH_SORT_EXTENDED;        break;
+                case "EXPR":            $sortmode = \Sphinx\SphinxClient::SPH_SORT_EXPR;            break;
+            }
+        }
+
+        $this->SetSortMode($sortmode, $field);
+
+        return $this;
+    }
+
+    public function rankmode($rankmode) 
+    {
+        if(gettype($rankmode) === "string")
+        {
+            $rankmode = strtoupper($rankmode);
+            $rankmode = str_replace("SPH_RANK_", "", $rankmode);
+
+            switch($rankmode)
+            {
+                case "PROXIMITY_BM25":  $rankmode = \Sphinx\SphinxClient::SPH_RANK_PROXIMITY_BM25;   break;
+                case "BM25":            $rankmode = \Sphinx\SphinxClient::SPH_RANK_BM25;             break;
+                case "NONE":            $rankmode = \Sphinx\SphinxClient::SPH_RANK_NONE;             break;
+                case "WORDCOUNT":       $rankmode = \Sphinx\SphinxClient::SPH_RANK_WORDCOUNT;        break;
+                case "PROXIMITY":       $rankmode = \Sphinx\SphinxClient::SPH_RANK_PROXIMITY;        break;
+                case "MATCHANY":        $rankmode = \Sphinx\SphinxClient::SPH_RANK_MATCHANY;         break;
+                case "FIELDMASK":       $rankmode = \Sphinx\SphinxClient::SPH_RANK_FIELDMASK;        break;
+                case "SPH04":           $rankmode = \Sphinx\SphinxClient::SPH_RANK_SPH04;            break;
+                case "EXPR":            $rankmode = \Sphinx\SphinxClient::SPH_RANK_EXPR;             break;
+                case "TOTAL":           $rankmode = \Sphinx\SphinxClient::SPH_RANK_TOTAL;            break;
+            }
+        }
+
+        $this->setRankingMode($rankmode);
+
+        return $this;
+    }
+
+    public function matchmode($matchmode) 
+    {
+        if(gettype($matchmode) === "string")
+        {
+            $matchmode = strtoupper($matchmode);
+            $matchmode = str_replace("SPH_MATCH_", "", $matchmode);
+
+            switch($matchmode) 
+            {
+                case "ALL":         $matchmode = \Sphinx\SphinxClient::SPH_MATCH_ALL;       break;
+                case "ANY":         $matchmode = \Sphinx\SphinxClient::SPH_MATCH_ANY;       break;
+                case "PHRASE":      $matchmode = \Sphinx\SphinxClient::SPH_MATCH_PHRASE;    break;
+                case "BOOLEAN":     $matchmode = \Sphinx\SphinxClient::SPH_MATCH_BOOLEAN;   break;
+                case "EXTENDED":    $matchmode = \Sphinx\SphinxClient::SPH_MATCH_EXTENDED;  break;
+                case "FULLSCAN":    $matchmode = \Sphinx\SphinxClient::SPH_MATCH_FULLSCAN;  break;
+                case "EXTENDED2":   $matchmode = \Sphinx\SphinxClient::SPH_MATCH_EXTENDED2; break;
+            }
+        }
+
+        $this->setMatchMode($matchmode);
+
+        return $this;
+    }
+
     public function weights($value = array()) 
     {
         $this->SetFieldWeights($value);
@@ -115,21 +189,20 @@ class SphinxSearch
 
     public function get() 
     {
-        $this->total_count  = 0;
+        $this->total_found  = 0;
         $this->time         = 0;
 
         $result = $this->query($this->term, $this->index);
 
         if ($result)
         {
-            $this->total_count  = $result['total_found'];
+            $this->total_found  = $result['total_found'];
             $this->time         = $result['time'];
 
             if ($result['total'] && isset($result['matches']))
             {
                 if (!empty($this->table))
                 {
-                    // Get results' id's and query the database.
                     $match_ids = array_keys($result['matches']);
 
                     if ($this->table instanceof \Illuminate\Database\Eloquent\Model)
@@ -159,12 +232,12 @@ class SphinxSearch
         return false;
     }
 
-    public function count()
+    public function total_found()
     {
-        return $this->total_count;
+        return $this->total_found;
     }
 
-    public function runtime()
+    public function time()
     {
         return $this->time;
     }
