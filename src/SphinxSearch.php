@@ -1,15 +1,22 @@
 <?php 
-namespace wneuteboom\SphinxSearch;
+namespace WNeuteboom\SphinxSearch;
 
 class SphinxSearch
 {
     protected $connection;
-    protected $_index_name;
-    protected $_search_string;
-    protected $_config;
-    protected $_total_count;
-    protected $_time;
-    protected $_eager_loads;
+
+    protected $total_count;
+    protected $time;
+    protected $term;
+    protected $index;
+    protected $order = "";
+    protected $exclude = array();
+    protected $limit = 100;
+    protected $offset = 0;
+    protected $page = 0;
+
+    protected $table;
+    protected $with = array();
 
     public function __construct($args = array())
     {
@@ -20,231 +27,150 @@ class SphinxSearch
         $this->connection->setSortMode(\Sphinx\SphinxClient::SPH_SORT_RELEVANCE);
     }
 
-    /**
-     * Dynamically retrieve attributes on the model.
-     *
-     * @param  string  $key
-     * @return mixed
-     */
-    // public function __get($key)
-    // {
-    //     return $this->getAttribute($key);
-    // }
-
-    /**
-     * Dynamically set attributes on the model.
-     *
-     * @param  string  $key
-     * @param  mixed  $value
-     * @return void
-     */
-    // public function __set($key, $value)
-    // {
-    //     $this->setAttribute($key, $value);
-    // }
-
-    /*
-    public function search($string, $index_name = null)
+    public function select()
     {
-        $this->_search_string = $string;
-        if (null !== $index_name) {
-            // if index name contains , or ' ', multiple index search
-            if (strpos($index_name, ' ') || strpos($index_name, ',')) {
-                if (!isset($this->_config['mapping'])) {
-                    $this->_config['mapping'] = false;
-                }
-            }
-            $this->_index_name = $index_name;
-        }
-        $this->_connection->resetFilters();
-        $this->_connection->resetGroupBy();
+        $this->SetSelect(implode(",", func_get_args()));
+
         return $this;
     }
 
-    public function setFieldWeights($weights)
+    public function index($index)
     {
-        $this->_connection->setFieldWeights($weights);
+        $this->index = $index;
+
         return $this;
     }
 
-    public function setMatchMode($mode)
+    public function search($term)
     {
-        $this->_connection->setMatchMode($mode);
+        $this->term = $term;
+
         return $this;
     }
 
-    public function setRankingMode($mode)
+    public function table($table)
     {
-        $this->_connection->setRankingMode($mode);
+        $this->table = $table;
+
         return $this;
     }
 
-    public function setSortMode($mode, $sortby = null)
+    public function with($with = array())
     {
-        $this->_connection->setSortMode($mode, $sortby);
+        $this->with = $with;
+
         return $this;
     }
 
-    public function setFilterFloatRange($attribute, $min, $max, $exclude = false)
+    public function where($field, $value) 
     {
-        $this->_connection->setFilterFloatRange($attribute, $min, $max, $exclude);
+        $this->SetFilter($field, $value);
+
         return $this;
     }
 
-    public function setGeoAnchor($attrlat, $attrlong, $lat = null, $long = null)
+    public function whereNot($field, $value)
     {
-        $this->connection->setGeoAnchor($attrlat, $attrlong, $lat, $long);
+        $this->SetFilter($field, $value, true);
+
         return $this;
     }
 
-    public function setGroupBy($attribute, $func, $groupsort = '@group desc')
+    public function whereFloatRange($field, $from, $to)
     {
-        $this->connection->setGroupBy($attribute, $func, $groupsort);
+        $this->SetFilterFloatRange($field, (float)$from, (float)$to);
+
         return $this;
     }
 
-    public function setSelect($select)
+    public function orderBy($field, $sort_type)
     {
-        $this->connection->setSelect($select);
+        $this->SetSortMode($sort_type, $field);
+
         return $this;
     }
 
-    public function setLimit($limit, $offset = 0, $max_matches = 1000, $cutoff = 1000)
+    public function skip($value) 
     {
-        $this->connection->setLimits($offset, $limit, $max_matches, $cutoff);
+        $this->offset = $value;
+        $this->SetLimits($this->offset, $this->limit);
+
         return $this;
     }
 
-    public function filter($attribute, $values, $exclude = false)
+    public function take($value)
     {
-        if (is_array($values)) {
-            $val = array();
-            foreach ($values as $v) {
-                $val[] = (int)$v;
-            }
-        } else {
-            $val = array((int)$values);
-        }
-        $this->_connection->setFilter($attribute, $val, $exclude);
+        $this->limit = $value;
+        $this->SetLimits($this->offset, $this->limit);
+
         return $this;
     }
 
-    public function range($attribute, $min, $max, $exclude = false)
+    public function weights($value = array()) 
     {
-        $this->_connection->setFilterRange($attribute, $min, $max, $exclude);
+        $this->SetFieldWeights($value);
+
         return $this;
     }
 
-    public function query()
+    public function get() 
     {
-        return $this->_connection->query($this->_search_string, $this->_index_name);
-    }
+        $this->total_count  = 0;
+        $this->time         = 0;
 
-    public function excerpt($content, $opts = array())
-    {
-        return $this->_connection->buildExcerpts(array($content), $this->_index_name, $this->_search_string, $opts);
-    }
+        $result = $this->query($this->term, $this->index);
 
-    public function excerpts($contents, $opts = array())
-    {
-        return $this->_connection->buildExcerpts($contents, $this->_index_name, $this->_search_string, $opts);
-    }
+        if ($result)
+        {
+            $this->total_count  = $result['total_found'];
+            $this->time         = $result['time'];
 
-    public function get($respect_sort_order = false)
-    {
-        $this->_total_count = 0;
-        $result = $this->_connection->query($this->_search_string, $this->_index_name);
-        // Process results.
-        if ($result) {
-            // Get total count of existing results.
-            $this->_total_count = (int)$result['total_found'];
-            // Get time taken for search.
-            $this->_time = $result['time'];
-            if ($result['total'] && isset($result['matches'])) {
-                // Get results' id's and query the database.
-                $matchids = array_keys($result['matches']);
-                $idString = implode(',', $matchids);
-                $config = isset($this->_config['mapping']) ? $this->_config['mapping']
-                    : $this->_config[$this->_index_name];
-                if ($config) {
-                    if (isset($config['modelname'])) {
-                        if ($this->_eager_loads) {
-                            $result = call_user_func_array($config['modelname'] . "::whereIn",
-                                array($config['column'], $matchids))->orderByRaw(\DB::raw("FIELD(id, $idString)"))
-                                ->with($this->_eager_loads)->get();
-                        } else {
-                            $result = call_user_func_array($config['modelname'] . "::whereIn",
-                                array($config['column'], $matchids))->orderByRaw(\DB::raw("FIELD(id, $idString)"))
-                                ->get();
-                        }
-                    } else {
-                        $result = \DB::table($config['table'])->whereIn($config['column'], $matchids)
-                            ->orderByRaw(\DB::raw("FIELD(id, $idString)"))->get();
+            if ($result['total'] && isset($result['matches']))
+            {
+                if (!empty($this->table))
+                {
+                    // Get results' id's and query the database.
+                    $match_ids = array_keys($result['matches']);
+
+                    if ($this->table instanceof \Illuminate\Database\Eloquent\Model)
+                    {
+                        $result = $this->table->whereIn("id", $match_ids)
+                                              ->with($this->with)
+                                              ->orderByRaw(\DB::raw("FIELD(id, " . implode(",", $match_ids) . ")"))
+                                              ->get();
+
+                        return $result;
+                    }
+                    else if ($this->table)
+                    {
+                        $result = \DB::table($this->table)
+                                        ->whereIn("id", $match_ids)
+                                        ->orderByRaw(\DB::raw("FIELD(id, " . implode(",", $match_ids) . ")"))
+                                        ->get();   
+
+                        return $result;
                     }
                 }
-            } else {
-                $result = array();
+
+                return $result['matches'];
             }
         }
-        if ($respect_sort_order) {
-            if (isset($matchids)) {
-                $return_val = array();
-                foreach ($matchids as $matchid) {
-                    $key = self::getResultKeyByID($matchid, $result);
-                    if (false !== $key) {
-                        $return_val[] = $result[$key];
-                    }
-                }
-                return $return_val;
-            }
-        }
-        // important: reset the array of eager loads prior to making next call
-        $this->_eager_loads = array();
-        return $result;
-    }
 
-    public function with()
-    {
-        // Allow multiple with-calls
-        if (false === isset($this->_eager_loads)) {
-            $this->_eager_loads = array();
-        }
-        foreach (func_get_args() as $a) {
-            // Add closures as name=>function()
-            if (is_array($a)) {
-                $this->_eager_loads = array_merge($this->_eager_loads, $a);
-            } else {
-                $this->_eager_loads[] = $a;
-            }
-        }
-        return $this;
-    }
-
-    public function getTotalCount()
-    {
-        return $this->_total_count;
-    }
-
-    public function getTime()
-    {
-        return $this->_time;
-    }
-
-    public function getErrorMessage()
-    {
-        return $this->_connection->getLastError();
-    }
-
-    private function getResultKeyByID($id, $result)
-    {
-        if (count($result) > 0) {
-            foreach ($result as $k => $result_item) {
-                if ($result_item->id == $id) {
-                    return $k;
-                }
-            }
-        }
         return false;
     }
-    */
+
+    public function count()
+    {
+        return $this->total_count;
+    }
+
+    public function runtime()
+    {
+        return $this->time;
+    }
+
+    public function __call($method, $parameters)
+    {
+        return call_user_func_array(array($this->connection, $method), $parameters);
+    }
 }

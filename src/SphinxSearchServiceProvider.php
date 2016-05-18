@@ -1,4 +1,4 @@
-<?php namespace wneuteboom\SphinxSearch;
+<?php namespace WNeuteboom\SphinxSearch;
 
 use Illuminate\Foundation\Application as LaravelApplication;
 use Illuminate\Support\ServiceProvider;
@@ -49,7 +49,7 @@ class SphinxSearchServiceProvider extends ServiceProvider
             return new SphinxSearch($config);
         });
 
-        $this->app->alias('sphinxsearch');
+        $this->app->alias('sphinxsearch', 'WNeuteboom\SphinxSearch');
     }
 
     /**
@@ -59,7 +59,7 @@ class SphinxSearchServiceProvider extends ServiceProvider
      */
     public function provides()
     {
-        return ['sphinxsearch'];
+        return ['sphinxsearch', 'WNeuteboom\SphinxSearch'];
     }
 
 }
