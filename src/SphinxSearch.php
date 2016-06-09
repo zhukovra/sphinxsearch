@@ -22,6 +22,17 @@ class SphinxSearch
         $this->connection->setConnectTimeout($args['timeout']);
     }
 
+    public function reset()
+    {
+        $this->resetFilters();
+        $this->resetGroupBy();
+        $this->resetOverrides();
+
+        $this->setFieldWeights(array());
+
+        return $this;
+    }
+
     public function select()
     {
         $this->SetSelect(implode(",", func_get_args()));
@@ -102,6 +113,13 @@ class SphinxSearch
     {
         $this->limit = $value;
         $this->SetLimits($this->offset, $this->limit);
+
+        return $this;
+    }
+
+    public function sortmode($sortmode)
+    {
+        $this->orderBy("", $sortmode);
 
         return $this;
     }
@@ -187,13 +205,36 @@ class SphinxSearch
         return $this;
     }
 
-    public function get() 
+    public function groupBy($field, $groupby) 
     {
-        $this->total_found  = 0;
-        $this->time         = 0;
+        if(gettype($groupby) === "string")
+        {
+            $groupby = strtoupper($groupby);
+            $groupby = str_replace("SPH_GROUPBY_", "", $groupby);
 
-        $result = $this->query($this->term, $this->index);
+            switch($groupby) 
+            {
+                case "DAY":         $groupby = \Sphinx\SphinxClient::SPH_GROUPBY_DAY;      break;
+                case "WEEK":        $groupby = \Sphinx\SphinxClient::SPH_GROUPBY_WEEK;     break;
+                case "MONTH":       $groupby = \Sphinx\SphinxClient::SPH_GROUPBY_MONTH;    break;
+                case "YEAR":        $groupby = \Sphinx\SphinxClient::SPH_GROUPBY_YEAR;     break;
+                case "ATTR":        $groupby = \Sphinx\SphinxClient::SPH_GROUPBY_ATTR;     break;
+                case "ATTRPAIR":    $groupby = \Sphinx\SphinxClient::SPH_GROUPBY_ATTRPAIR; break;
+            }
+        }
 
+        $this->setGroupBy($field, $groupby);
+
+        return $this;
+    }
+
+    public function add()
+    {
+        return $this->AddQuery($this->term, $this->index);
+    }
+
+    private function processResult($result)
+    {
         if ($result)
         {
             $this->total_found  = $result['total_found'];
@@ -230,6 +271,36 @@ class SphinxSearch
         }
 
         return false;
+    }
+
+    public function run()
+    {
+        $this->total_found  = 0;
+        $this->time         = 0;
+
+        $results = $this->RunQueries();
+
+        if (empty($results)) 
+            return false;
+
+        $processed_results = array();
+
+        foreach($results as $index => $result)
+        {
+            $processed_results[$index] = $this->processResult($result);
+        }
+
+        return $processed_results;
+    }
+
+    public function get() 
+    {
+        $this->total_found  = 0;
+        $this->time         = 0;
+
+        $result = (array)$this->query($this->term, $this->index);
+
+        return $this->processResult($result);
     }
 
     public function total_found()
