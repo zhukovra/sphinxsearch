@@ -101,6 +101,13 @@ class SphinxSearch
         return $this;
     }
 
+    public function whereRange($field, $from, $to)
+    {
+        $this->SetFilterRange($field, $from, $to);
+
+        return $this;
+    }
+
     public function skip($value) 
     {
         $this->offset = $value;
