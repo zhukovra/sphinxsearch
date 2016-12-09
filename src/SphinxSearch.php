@@ -70,6 +70,10 @@ class SphinxSearch
 
     public function where($field, $value, $exclude = false) 
     {
+        if (empty($value)) {
+            return $this;
+        }
+
         if (is_array($value))
         {
             $val = array();
